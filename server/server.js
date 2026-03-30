@@ -4,7 +4,6 @@ if (process.env.NODE_ENV !== "production") {
 }
 
 import express from "express";
-import cors from "cors";
 import connectDB from "./src/config/db.js";
 import concertRoutes from "./routes/concertRoutes.js";
 import { initSocket } from "./socket/socketHandler.js";
@@ -17,36 +16,18 @@ const app = express();
 //DB connect
 connectDB();
 
-// CORS Configuration for Vercel
-const allowedOrigins = [
-  "http://localhost:5173",
-  "http://localhost:3000",
-  process.env.FRONTEND_URL || "",
-  process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "",
-];
-
-app.use(
-  cors({
-    origin: function (origin, callback) {
-      // Allow requests with no origin (like mobile apps or curl requests)
-      if (!origin) return callback(null, true);
-      
-      if (allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        // For Vercel preview URLs, allow all
-        if (origin?.includes("vercel.app")) {
-          callback(null, true);
-        } else {
-          callback(new Error("Not allowed by CORS"));
-        }
-      }
-    },
-    credentials: true,
-  })
-);
-
 app.use(express.json());
+
+// Simple CORS for Vercel
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
+  next();
+});
 
 app.use("/api/concerts", concertRoutes);
 
