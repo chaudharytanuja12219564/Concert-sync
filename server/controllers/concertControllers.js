@@ -7,15 +7,26 @@ export const createConcert = async (req, res) => {
     //DECONSTRUCTOR
     const { roomName, artists,  host } = req.body;
 
+    if (!roomName || !artists || !host) {
+      return res.status(400).json({ message: "Missing required fields" });
+    }
+
     // generate random 6 character invite code
     const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
     
-    // 🎵 generate playlist 
+    // 🎵 generate playlist with error handling
     let playlist = [];
 
     for (const artist of artists) {
-      const songs = await getSongsFromYouTube(artist);
-      playlist.push(...songs);
+      try {
+        const songs = await getSongsFromYouTube(artist);
+        if (songs && songs.length > 0) {
+          playlist.push(...songs);
+        }
+      } catch (youtubeError) {
+        console.warn(`Failed to get songs for artist ${artist}:`, youtubeError.message);
+        // Continue with next artist instead of crashing
+      }
     }
 
     const concert = await Concert.create({
@@ -24,14 +35,23 @@ export const createConcert = async (req, res) => {
       inviteCode,
       host,
       playlist,
-      participants: [], // good practice to initialize
+      participants: [],
     });
 
-    res.status(201).json(concert);
+    res.status(201).json({
+      _id: concert._id,
+      roomName: concert.roomName,
+      artists: concert.artists,
+      inviteCode: concert.inviteCode,
+      host: concert.host,
+      playlist: concert.playlist,
+      participants: concert.participants,
+    });
   }
   
   catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error("Error creating concert:", error.message);
+    res.status(500).json({ message: error.message || "Failed to create concert" });
   }
 };
 
