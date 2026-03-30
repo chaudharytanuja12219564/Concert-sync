@@ -4,6 +4,7 @@ if (process.env.NODE_ENV !== "production") {
 }
 
 import express from "express";
+import cors from "cors";
 import connectDB from "./src/config/db.js";
 import concertRoutes from "./routes/concertRoutes.js";
 import { initSocket } from "./socket/socketHandler.js";
@@ -16,18 +17,15 @@ const app = express();
 //DB connect
 connectDB();
 
-app.use(express.json());
+// CORS middleware - MUST be before routes
+app.use(cors({
+  origin: "*",
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: false
+}));
 
-// Simple CORS for Vercel
-app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "*");
-  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  if (req.method === "OPTIONS") {
-    return res.sendStatus(200);
-  }
-  next();
-});
+app.use(express.json());
 
 app.use("/api/concerts", concertRoutes);
 
