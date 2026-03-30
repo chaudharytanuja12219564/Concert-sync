@@ -72,9 +72,12 @@ app.set("io", io);
 //SOCKET CODE GOES HERE
 initSocket(io);
 
-server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+// Only listen in development, not on Vercel
+if (process.env.NODE_ENV !== "production") {
+  server.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+}
 
 // Export for Vercel serverless functions
 export default app;
