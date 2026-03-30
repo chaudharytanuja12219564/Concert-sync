@@ -14,8 +14,11 @@ import { Server } from "socket.io";
 
 const app = express();
 
-//DB connect
-connectDB();
+// Initialize DB connection immediately but don't block startup
+connectDB().catch((err) => {
+  console.error("Database connection error:", err.message);
+  // Don't call process.exit() on Vercel - let it respond with error instead
+});
 
 // CORS middleware - MUST be before routes
 app.use(cors({
