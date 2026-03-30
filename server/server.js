@@ -17,22 +17,31 @@ const app = express();
 
 // Initialize DB connection immediately but don't block startup
 let dbConnected = false;
+let dbConnectionError = null;
+
 connectDB().then((conn) => {
   if (conn) {
     dbConnected = true;
-    console.log("✅ DB connection established");
+    console.log("✅ DB connection established successfully");
   } else {
-    console.warn("⚠️  DB connection failed - will retry on requests");
+    console.error("❌ DB connection failed - returning errors for all requests");
+    dbConnectionError = "Database connection failed. Please ensure MONGODB_URI is valid and MongoDB Atlas is accessible.";
   }
 }).catch((err) => {
   console.error("Database connection error:", err.message);
+  dbConnectionError = err.message;
 });
 
 // Middleware to check DB connection on each request
 app.use((req, res, next) => {
   if (!dbConnected && mongoose.connection.readyState !== 1) {
-    console.warn("⚠️  MongoDB not connected yet, attempting immediate connection...");
-    // Don't block - let the route handlers deal with connection state
+    // For API routes, return error
+    if (req.path.startsWith("/api/")) {
+      return res.status(503).json({ 
+        message: "Database connection is not ready yet. Please try again in a few seconds.",
+        error: dbConnectionError || "Unknown connection error"
+      });
+    }
   }
   next();
 });
