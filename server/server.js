@@ -5,6 +5,7 @@ if (process.env.NODE_ENV !== "production") {
 
 import express from "express";
 import cors from "cors";
+import mongoose from "mongoose";
 import connectDB from "./src/config/db.js";
 import concertRoutes from "./routes/concertRoutes.js";
 import { initSocket } from "./socket/socketHandler.js";
@@ -15,9 +16,25 @@ import { Server } from "socket.io";
 const app = express();
 
 // Initialize DB connection immediately but don't block startup
-connectDB().catch((err) => {
+let dbConnected = false;
+connectDB().then((conn) => {
+  if (conn) {
+    dbConnected = true;
+    console.log("✅ DB connection established");
+  } else {
+    console.warn("⚠️  DB connection failed - will retry on requests");
+  }
+}).catch((err) => {
   console.error("Database connection error:", err.message);
-  // Don't call process.exit() on Vercel - let it respond with error instead
+});
+
+// Middleware to check DB connection on each request
+app.use((req, res, next) => {
+  if (!dbConnected && mongoose.connection.readyState !== 1) {
+    console.warn("⚠️  MongoDB not connected yet, attempting immediate connection...");
+    // Don't block - let the route handlers deal with connection state
+  }
+  next();
 });
 
 // CORS middleware - MUST be before routes

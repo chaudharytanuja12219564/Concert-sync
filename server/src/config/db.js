@@ -1,5 +1,9 @@
 import mongoose from "mongoose";
 
+let connectionAttempts = 0;
+const MAX_RETRIES = 5;
+const RETRY_DELAY = 3000; // 3 seconds between retries
+
 const connectDB = async () => {
   try {
     if (!process.env.MONGODB_URI) {
@@ -12,17 +16,28 @@ const connectDB = async () => {
       socketTimeoutMS: 45000,
       connectTimeoutMS: 15000,
       maxPoolSize: 10,
-      family: 4, // use IPv4 (helps some environments where IPv6 is blocked)
+      family: 4,
       retryWrites: true,
       appName: "ConcertSyncApp",
     });
+    
+    connectionAttempts = 0; // Reset counter on success
     console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
     return conn;
   } catch (error) {
-    console.error("❌ MongoDB Connection Error:", error.message);
-    console.error(error);
-    // Don't call process.exit() - let the app continue and handle errors in routes
-    throw error;
+    connectionAttempts++;
+    console.error(`❌ MongoDB Connection Error (Attempt ${connectionAttempts}/${MAX_RETRIES}):`, error.message);
+    
+    // Auto-retry with exponential backoff
+    if (connectionAttempts < MAX_RETRIES) {
+      console.log(`⏳ Retrying in ${RETRY_DELAY / 1000} seconds...`);
+      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+      return connectDB(); // Recursive retry
+    }
+    
+    // Give up after max retries, but return null instead of crashing
+    console.error("❌ Max MongoDB connection retries exhausted");
+    return null;
   }
 };
 
